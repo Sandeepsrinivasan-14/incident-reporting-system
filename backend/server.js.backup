@@ -1,0 +1,167 @@
+const express = require('express');
+const cors = require('cors');
+const { PrismaClient } = require('@prisma/client');
+
+const app = express();
+const prisma = new PrismaClient();
+
+app.use(cors());
+app.use(express.json());
+
+// GET all incidents
+
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, 'your-secret-key', (err, user) => {
+    if (err) return res.status(403).json({ error: 'Invalid token' });
+    req.user = user;
+    next();
+  });
+};
+
+app.get('/api/incidents', async (req, res) => {
+  try {
+    const incidents = await prisma.incident.findMany({
+      include: { reporter: true }
+    });
+    res.json(incidents);
+  } catch (error) {
+    console.error('Error fetching incidents:', error);
+    res.status(500).json({ error: 'Failed to fetch incidents' });
+  }
+});
+
+// GET incidents by reporter user ID
+
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, 'your-secret-key', (err, user) => {
+    if (err) return res.status(403).json({ error: 'Invalid token' });
+    req.user = user;
+    next();
+  });
+};
+
+app.get('/api/incidents/reporter/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const incidents = await prisma.incident.findMany({
+      where: { reporterId: parseInt(userId) },
+      include: { reporter: true }
+    });
+    res.json(incidents);
+  } catch (error) {
+    console.error('Error fetching reporter incidents:', error);
+    res.status(500).json({ error: 'Failed to fetch reporter incidents' });
+  }
+});
+
+// POST create incident
+app.post('/api/incidents', async (req, res) => {
+  try {
+    const { title, description, priority, reporterId } = req.body;
+    
+    const incident = await prisma.incident.create({
+      data: {
+        title,
+        description,
+        priority: priority || 'MEDIUM',
+        status: 'OPEN',
+        reporterId: parseInt(reporterId)
+      },
+      include: { reporter: true }
+    });
+    
+    res.json(incident);
+  } catch (error) {
+    console.error('Error creating incident:', error);
+    res.status(500).json({ error: 'Failed to create incident' });
+  }
+});
+
+// PUT update incident status
+app.put('/api/incidents/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    const incident = await prisma.incident.update({
+      where: { id: parseInt(id) },
+      data: { status },
+      include: { reporter: true }
+    });
+    
+    res.json(incident);
+  } catch (error) {
+    console.error('Error updating incident:', error);
+    res.status(500).json({ error: 'Failed to update incident' });
+  }
+});
+
+// POST login endpoint
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+    
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    res.json({ id: user.id, email: user.email, role: user.role });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+const PORT = process.env.PORT || 3001;
+
+app.patch('/api/incidents/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, resolution } = req.body;
+    
+    const incident = await prisma.incident.update({
+      where: { id: parseInt(id) },
+      data: {
+        status: status || undefined,
+        resolution: resolution || undefined
+      },
+      include: { reporter: true }
+    });
+    
+    res.json(incident);
+  } catch (error) {
+    console.error('Error updating incident:', error);
+    res.status(500).json({ error: 'Failed to update incident' });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
+
+process.on('SIGINT', async () => {
+  await prisma.$disconnect();
+  process.exit();
+});
+
+
+
+
+
