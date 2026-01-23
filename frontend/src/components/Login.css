@@ -1,0 +1,182 @@
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.login-blobs { position: absolute; width: 100%; height: 100%; z-index: 0; }
+.blob {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  animation: float 8s ease-in-out infinite;
+}
+.blob1 { width: 300px; height: 300px; top: -100px; left: -50px; }
+.blob2 { width: 250px; height: 250px; bottom: 50px; right: 50px; animation-duration: 9s; }
+.blob3 { width: 200px; height: 200px; top: 50%; right: 10%; animation-duration: 7s; }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+.login-wrapper {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 450px;
+  padding: 20px;
+}
+
+.login-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 50px 40px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  animation: slideUp 0.6s ease-out;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.login-header { text-align: center; margin-bottom: 40px; }
+.login-icon {
+  font-size: 50px;
+  margin-bottom: 15px;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.login-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 8px;
+}
+
+.login-header p {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.login-error {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #991b1b;
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  animation: shake 0.3s ease-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+form { margin-bottom: 24px; }
+.login-group { margin-bottom: 20px; }
+.login-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.login-group input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.login-group input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  transform: scale(1.01);
+}
+
+.login-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.login-btn:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.6);
+}
+
+.login-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+.login-divider { text-align: center; color: #9ca3af; font-size: 12px; margin: 24px 0; padding: 0 0 24px; border-bottom: 1px solid #e5e7eb; }
+.test-accounts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+.test-btn {
+  padding: 12px;
+  border: 2px solid #e5e7eb;
+  background: #f9fafb;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.test-btn:hover {
+  transform: translateY(-3px);
+  background: #f3f4f6;
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+}
+
+.test-btn.reporter:hover { border-color: #667eea; }
+.test-btn.resolver:hover { border-color: #10b981; }
+.login-footer {
+  text-align: center;
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.login-footer a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.login-footer a:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .login-card { padding: 30px 20px; }
+  .login-header h1 { font-size: 24px; }
+  .test-accounts { grid-template-columns: 1fr; }
+}

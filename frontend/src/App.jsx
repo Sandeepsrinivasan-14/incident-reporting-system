@@ -1,38 +1,29 @@
-import { useAuth, AuthProvider } from "./context/AuthContext";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./components/AuthContext";
 import Login from "./components/Login";
-import Register from "./components/Register";
-import ReporterDashboard from "./components/ReporterDashboard";
-import ResolverDashboard from "./components/ResolverDashboard";
+import Dashboard from "./components/Dashboard";
 
-function AppContent() {
-  const { user, loading } = useAuth();
+function PrivateRoute({ children }) {
+  const { token } = useAuth();
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
 
-  if (loading) return <div className="flex items-center justify-center h-screen">Loading...</div>;
-
+function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
       <Route
-        path="/reporter"
-        element={user?.role === "REPORTER" ? <ReporterDashboard /> : <Navigate to="/login" />}
-      />
-      <Route
-        path="/resolver"
-        element={user?.role === "RESOLVER" ? <ResolverDashboard /> : <Navigate to="/login" />}
-      />
-      <Route
-        path="/"
+        path="/dashboard"
         element={
-          user ? (
-            <Navigate to={user.role === "REPORTER" ? "/reporter" : "/resolver"} />
-          ) : (
-            <Navigate to="/login" />
-          )
+          <PrivateRoute>
+            <Dashboard />
+          </PrivateRoute>
         }
       />
-      <Route path="*" element={<Navigate to="/" />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }
@@ -41,7 +32,7 @@ export default function App() {
   return (
     <AuthProvider>
       <Router>
-        <AppContent />
+        <AppRoutes />
       </Router>
     </AuthProvider>
   );

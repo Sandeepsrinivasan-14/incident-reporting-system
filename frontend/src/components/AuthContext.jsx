@@ -1,47 +1,50 @@
-﻿import { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { createContext, useContext, useState, useEffect } from "react";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+  const [token, setToken] = useState(null);
+  const [role, setRole] = useState(null);
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = Bearer ;
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setUser(payload);
-      } catch (e) {}
-    }
-    setLoading(false);
+    const storedToken = localStorage.getItem("token");
+    const storedRole = localStorage.getItem("role");
+    const storedUser = localStorage.getItem("user");
+
+    if (storedToken) setToken(storedToken);
+    if (storedRole) setRole(storedRole);
+    if (storedUser) setUser(JSON.parse(storedUser));
   }, []);
 
-  const login = async (email, password) => {
-    try {
-      const res = await axios.post('http://localhost:3001/api/login', { email, password });
-      localStorage.setItem('token', res.data.token);
-      axios.defaults.headers.common['Authorization'] = Bearer ;
-      setUser(res.data.user);
-      return true;
-    } catch {
-      return false;
-    }
+  const login = (newToken, newRole, newUser) => {
+    setToken(newToken);
+    setRole(newRole);
+    setUser(newUser || null);
+
+    localStorage.setItem("token", newToken);
+    localStorage.setItem("role", newRole);
+    if (newUser) localStorage.setItem("user", JSON.stringify(newUser));
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
+    setToken(null);
+    setRole(null);
     setUser(null);
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("user");
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ token, role, user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  return useContext(AuthContext);
+}
+
+export default useAuth;

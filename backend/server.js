@@ -111,17 +111,25 @@ app.post("/api/login", async (req, res) => {
 
 // ==================== INCIDENT ENDPOINTS ====================
 
-// GET ALL INCIDENTS (RESOLVER only)
+// GET ALL INCIDENTS (REPORTERS see their own, RESOLVERS see all)
 app.get("/api/incidents", authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== "RESOLVER") {
-      return res.status(403).json({ error: "Only resolvers can view all incidents" });
-    }
+    let incidents;
 
-    const incidents = await prisma.incident.findMany({
-      include: { reporter: { select: { id: true, email: true } } },
-      orderBy: { createdAt: "desc" },
-    });
+    if (req.user.role === "RESOLVER") {
+      incidents = await prisma.incident.findMany({
+        include: { reporter: { select: { id: true, email: true } } },
+        orderBy: { createdAt: "desc" },
+      });
+    } else if (req.user.role === "REPORTER") {
+      incidents = await prisma.incident.findMany({
+        where: { reporterId: req.user.id },
+        include: { reporter: { select: { id: true, email: true } } },
+        orderBy: { createdAt: "desc" },
+      });
+    } else {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
 
     res.json(incidents);
   } catch (error) {
