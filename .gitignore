@@ -8,3 +8,5 @@ dev.db
 dev.db-shm
 dev.db-wal
 .DS_Store
+.vercel
+.env*.local
