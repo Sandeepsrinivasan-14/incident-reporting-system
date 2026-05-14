@@ -14,7 +14,7 @@ export default function IncidentForm({ onSuccess }) {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3001/api/incidents", {
+      const res = await fetch("/api/incidents", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -72,6 +72,7 @@ export default function IncidentForm({ onSuccess }) {
           required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          placeholder="Enter incident title"
           style={{
             width: "100%",
             padding: "10px 12px",
@@ -98,6 +99,7 @@ export default function IncidentForm({ onSuccess }) {
           rows={3}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          placeholder="Describe the incident"
           style={{
             width: "100%",
             padding: "10px 12px",
@@ -134,6 +136,7 @@ export default function IncidentForm({ onSuccess }) {
           <option value="low">Low</option>
           <option value="medium">Medium</option>
           <option value="high">High</option>
+          <option value="critical">Critical</option>
         </select>
       </div>
 
@@ -150,6 +153,7 @@ export default function IncidentForm({ onSuccess }) {
           fontSize: "14px",
           fontWeight: 600,
           cursor: loading ? "not-allowed" : "pointer",
+          width: "100%",
         }}
       >
         {loading ? "Creating..." : "Create Incident"}

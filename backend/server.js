@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
@@ -7,7 +8,7 @@ const { PrismaClient } = require("@prisma/client");
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
-const SECRET_KEY = process.env.SECRET_KEY || "your-secret-key-change-in-production";
+const SECRET_KEY = process.env.JWT_SECRET || process.env.SECRET_KEY || "your-secret-key-change-in-production";
 
 // Middleware
 app.use(cors({ origin: "*", credentials: true }));

@@ -1,93 +1,129 @@
 # Incident Reporting Management System
 
-A production-ready full-stack application for managing incident reports with role-based access control.
+## Project Overview
 
-## ? Completed Features
+The Incident Reporting Management System is a full-stack web application designed to streamline the process of reporting and resolving incidents within an organization. **Reporters** can submit incident reports with priority levels, while **Resolvers** can manage, update, and track incidents through to resolution. The system enforces a critical business rule: **incident priority can never be downgraded**, ensuring accountability and proper escalation.
 
-### Authentication & Authorization
-- JWT-based user authentication
-- Role-based access control (REPORTER/RESOLVER)
-- User registration and login
-- Session persistence with localStorage
+## Tech Stack
 
-### Reporter Dashboard
-- Create incidents with title, description, and priority
-- View all reported incidents
-- Track incident status in real-time
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 18, Vite, Vanilla CSS, Axios |
+| **Backend** | Node.js, Express.js |
+| **Database** | SQLite with Prisma ORM |
+| **Authentication** | JWT (jsonwebtoken) with bcryptjs password hashing |
+| **Dev Tools** | Nodemon, Vite Dev Server with API Proxy |
 
-### Resolver Dashboard
-- View all incidents across the system
-- Filter incidents by status (Open, In Progress, Resolved)
-- Update incident status and priority
-- **Priority Protection**: Cannot downgrade incident priority
-
-### Database
-- SQLite database with Prisma ORM
-- Complete incident history
-- User management
-
-## ?? Tech Stack
-
-**Frontend:** React 18, Vite, Tailwind CSS, Axios
-**Backend:** Node.js, Express.js, Prisma, SQLite
-**Auth:** JWT with bcryptjs
-
-## ?? User Roles
+## User Roles and Permissions
 
 ### Reporter
-- Register and login
-- Create incidents with priority (low/medium/high/critical)
-- View own reported incidents
-- Monitor status changes
+- Register and log in to the system
+- Create incidents with title, description, and priority (low/medium/high/critical)
+- View own reported incidents and track their status
+- Cannot view other reporters' incidents
+- Cannot update or resolve incidents
 
 ### Resolver
-- Register and login
-- View all incidents
-- Update incident status and priority
-- Cannot downgrade priority levels
+- Register and log in to the system
+- View **all** reported incidents across the system
+- Update incident status: Open → In Progress → Resolved
+- Upgrade incident priority (e.g., low → high)
+- **Cannot downgrade** incident priority (enforced by backend)
+- Cannot create new incidents
 
-## ?? Critical Business Rule
+## Critical Business Rule
 
-**Priority Immutability**: Priority can only be maintained or upgraded, never downgraded.
+> ⚠️ **Priority Immutability**: Once an incident's priority is set, it can only be **maintained or upgraded**, never downgraded. Any attempt to lower the priority level is rejected by the backend API with a 400 error.
 
-## ?? API Endpoints
+Priority hierarchy: `low (1) < medium (2) < high (3) < critical (4)`
 
-- POST /api/register - Register user
-- POST /api/login - Login user
-- GET /api/incidents - Get all incidents (RESOLVER only)
-- POST /api/incidents - Create incident (REPORTER only)
-- PATCH /api/incidents/:id - Update incident (RESOLVER only, with priority protection)
+## API Endpoints
 
-## ?? Deployment Status
+| Method | Endpoint | Access | Description |
+|--------|----------|--------|-------------|
+| `POST` | `/api/register` | Public | Register a new user (email, password, role) |
+| `POST` | `/api/login` | Public | Login and receive JWT token |
+| `GET` | `/api/incidents` | Authenticated | Get incidents (REPORTER: own only, RESOLVER: all) |
+| `GET` | `/api/incidents/reporter/:userId` | Authenticated | Get specific reporter's incidents |
+| `POST` | `/api/incidents` | REPORTER only | Create a new incident |
+| `PATCH` | `/api/incidents/:id` | RESOLVER only | Update incident status/priority (with priority protection) |
 
-**Frontend**: Ready for Vercel deployment
-**Backend**: Ready for Railway/Render deployment
+All protected endpoints require `Authorization: Bearer <token>` header.
 
-## ?? Local Setup
+## Database Schema
 
-`ash
-# Backend
+### User Table
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | Integer | Primary Key, Auto Increment |
+| `email` | String | Unique, Required |
+| `password` | String | Hashed with bcryptjs |
+| `role` | String | "REPORTER" or "RESOLVER" |
+
+### Incident Table
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | Integer | Primary Key, Auto Increment |
+| `title` | String | Required |
+| `description` | String | Required |
+| `priority` | String | Default: "MEDIUM" (low/medium/high/critical) |
+| `status` | String | Default: "OPEN" (open/in_progress/resolved) |
+| `reporterId` | Integer | Foreign Key → User.id |
+| `createdAt` | DateTime | Auto-generated |
+| `updatedAt` | DateTime | Auto-updated |
+
+## Live Deployment Links
+
+- **Frontend**: [Deployed on Vercel](https://incident-reporting-system.vercel.app)
+- **Backend**: [Deployed on Render](https://incident-reporting-system.onrender.com)
+
+## Local Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/Sandeepsrinivasan-14/incident-reporting-system.git
+cd incident-reporting-system
+
+# Backend Setup
 cd backend
 npm install
+npx prisma generate
 npx prisma db push
 npm start
+# Server runs on http://localhost:3001
 
-# Frontend
+# Frontend Setup (in a new terminal)
 cd frontend
 npm install
 npm run dev
+# App runs on http://localhost:5173
+```
 
-?? Test Accounts
-Reporter: reporter@test.com / password
+## Test Accounts
 
-Resolver: resolver@test.com / password
+| Role | Email | Password |
+|------|-------|----------|
+| Reporter | reporter@test.com | password |
+| Resolver | resolver@test.com | password |
 
-? Project Status
-? Authentication: WORKING
-? Reporter Dashboard: WORKING
-? Resolver Dashboard: WORKING
-? Priority Rule: IMPLEMENTED
-? Database: WORKING
-? All Requirements: MET
+## Environment Variables
 
-Built with ?? | Version 1.0.0 | January 21, 2026
+Create a `backend/.env` file with:
+```
+DATABASE_URL="file:./dev.db"
+JWT_SECRET="your-secret-key"
+PORT=3001
+```
+
+## Project Status
+
+- ✅ Authentication: Working (JWT + bcrypt)
+- ✅ Reporter Dashboard: Working (create + view incidents)
+- ✅ Resolver Dashboard: Working (view all + update status/priority)
+- ✅ Priority Rule: Enforced (backend rejects downgrades)
+- ✅ Database: Persistent (SQLite via Prisma)
+- ✅ Role-Based Access: Enforced on API and UI
+- ✅ All Requirements: Met
+
+---
+Built with ❤️ | Version 1.0.0
