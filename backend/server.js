@@ -217,7 +217,7 @@ app.patch("/api/incidents/:id", authenticateToken, async (req, res) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: "Invalid incident ID" });
 
-    const { status, priority } = req.body;
+    const { status, priority, notes } = req.body;
 
     const validStatuses = ["open", "in_progress", "resolved"];
     if (status && !validStatuses.includes(status)) {
@@ -238,6 +238,7 @@ app.patch("/api/incidents/:id", authenticateToken, async (req, res) => {
       data: {
         ...(status && { status }),
         ...(priority && { priority }),
+        ...(notes !== undefined && { notes: typeof notes === "string" ? notes.trim() || null : null }),
       },
       include: { reporter: { select: { id: true, email: true } } },
     });
