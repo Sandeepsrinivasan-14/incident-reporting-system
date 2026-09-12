@@ -15,8 +15,13 @@ export default function Register() {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+
+    setLoading(true);
     try {
       const response = await fetch("/api/register", {
         method: "POST",
@@ -203,12 +208,14 @@ export default function Register() {
               <label style={styles.label}>Password</label>
               <input
                 type="password"
-                placeholder="Create a password"
+                placeholder="At least 8 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={8}
                 style={styles.input}
               />
+              <p style={{ fontSize: "11px", color: "#9ca3af", marginTop: "4px" }}>Minimum 8 characters</p>
             </div>
 
             <div style={styles.inputGroup}>

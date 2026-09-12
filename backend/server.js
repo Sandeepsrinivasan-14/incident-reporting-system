@@ -1,6 +1,8 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { PrismaClient } = require("@prisma/client");
@@ -8,54 +10,101 @@ const { PrismaClient } = require("@prisma/client");
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
-const SECRET_KEY = process.env.JWT_SECRET || process.env.SECRET_KEY || "your-secret-key-change-in-production";
+const SECRET_KEY = process.env.JWT_SECRET || "change-this-secret-in-production";
 
-// Middleware
-app.use(cors({ origin: "*", credentials: true }));
-app.use(express.json());
+// Security headers
+app.use(helmet());
 
-// Utility: Priority levels
+// CORS — allow Vite dev server and production frontend
+const allowedOrigins = process.env.FRONTEND_URL
+  ? [process.env.FRONTEND_URL]
+  : ["http://localhost:5173", "http://localhost:4173", "http://localhost:3000"];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (curl, mobile, Postman)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error("Not allowed by CORS"));
+    },
+    credentials: false,
+  })
+);
+
+app.use(express.json({ limit: "10kb" }));
+
+// Rate limiting
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  message: { error: "Too many requests, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: { error: "Too many requests, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api/login", authLimiter);
+app.use("/api/register", authLimiter);
+app.use("/api", apiLimiter);
+
+// Priority levels
 const PRIORITY_LEVELS = { low: 1, medium: 2, high: 3, critical: 4 };
 
-// Middleware: JWT Authentication
+// JWT middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
-
   if (!token) return res.status(401).json({ error: "Token required" });
-
   jwt.verify(token, SECRET_KEY, (err, user) => {
-    if (err) return res.status(403).json({ error: "Invalid token" });
+    if (err) return res.status(403).json({ error: "Invalid or expired token" });
     req.user = user;
     next();
   });
 };
 
-// ==================== AUTH ENDPOINTS ====================
+// Health check
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
-// REGISTER
+// ==================== AUTH ====================
+
 app.post("/api/register", async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
     if (!email || !password || !role) {
-      return res.status(400).json({ error: "Email, password, and role required" });
+      return res.status(400).json({ error: "Email, password, and role are required" });
+    }
+
+    if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
+
+    if (typeof password !== "string" || password.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
     }
 
     if (!["REPORTER", "RESOLVER"].includes(role)) {
       return res.status(400).json({ error: "Role must be REPORTER or RESOLVER" });
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
+    const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (existing) {
       return res.status(400).json({ error: "Email already registered" });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
+    const hashedPassword = await bcrypt.hash(password, 12);
     const user = await prisma.user.create({
-      data: { email, password: hashedPassword, role },
+      data: { email: email.toLowerCase(), password: hashedPassword, role },
     });
 
     const token = jwt.sign(
@@ -64,34 +113,30 @@ app.post("/api/register", async (req, res) => {
       { expiresIn: "24h" }
     );
 
-    res.json({
+    res.status(201).json({
       token,
       user: { id: user.id, email: user.email, role: user.role },
     });
   } catch (error) {
-    console.error("Registration error:", error);
+    console.error("Register error:", error);
     res.status(500).json({ error: "Registration failed" });
   }
 });
 
-// LOGIN
 app.post("/api/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: "Email and password required" });
+      return res.status(400).json({ error: "Email and password are required" });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email: typeof email === "string" ? email.toLowerCase() : "" },
+    });
 
-    if (!user) {
-      return res.status(400).json({ error: "Invalid credentials" });
-    }
-
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      return res.status(400).json({ error: "Invalid credentials" });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: "Invalid email or password" });
     }
 
     const token = jwt.sign(
@@ -110,58 +155,23 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// ==================== INCIDENT ENDPOINTS ====================
+// ==================== INCIDENTS ====================
 
-// GET ALL INCIDENTS (REPORTERS see their own, RESOLVERS see all)
 app.get("/api/incidents", authenticateToken, async (req, res) => {
   try {
-    let incidents;
-
-    if (req.user.role === "RESOLVER") {
-      incidents = await prisma.incident.findMany({
-        include: { reporter: { select: { id: true, email: true } } },
-        orderBy: { createdAt: "desc" },
-      });
-    } else if (req.user.role === "REPORTER") {
-      incidents = await prisma.incident.findMany({
-        where: { reporterId: req.user.id },
-        include: { reporter: { select: { id: true, email: true } } },
-        orderBy: { createdAt: "desc" },
-      });
-    } else {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
-    res.json(incidents);
-  } catch (error) {
-    console.error("Error fetching incidents:", error);
-    res.status(500).json({ error: "Failed to fetch incidents" });
-  }
-});
-
-// GET REPORTER'S INCIDENTS
-app.get("/api/incidents/reporter/:userId", authenticateToken, async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    if (req.user.id !== parseInt(userId) && req.user.role !== "RESOLVER") {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
+    const where = req.user.role === "REPORTER" ? { reporterId: req.user.id } : {};
     const incidents = await prisma.incident.findMany({
-      where: { reporterId: parseInt(userId) },
+      where,
       include: { reporter: { select: { id: true, email: true } } },
       orderBy: { createdAt: "desc" },
     });
-
     res.json(incidents);
   } catch (error) {
-    console.error("Error fetching reporter incidents:", error);
+    console.error("Fetch incidents error:", error);
     res.status(500).json({ error: "Failed to fetch incidents" });
   }
 });
 
-// CREATE INCIDENT (REPORTER only)
 app.post("/api/incidents", authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== "REPORTER") {
@@ -170,18 +180,20 @@ app.post("/api/incidents", authenticateToken, async (req, res) => {
 
     const { title, description, priority } = req.body;
 
-    if (!title || !priority) {
-      return res.status(400).json({ error: "Title and priority required" });
+    if (!title || typeof title !== "string" || title.trim().length === 0) {
+      return res.status(400).json({ error: "Title is required" });
     }
-
-    if (!["low", "medium", "high", "critical"].includes(priority)) {
-      return res.status(400).json({ error: "Invalid priority level" });
+    if (title.trim().length > 200) {
+      return res.status(400).json({ error: "Title must be 200 characters or less" });
+    }
+    if (!priority || !["low", "medium", "high", "critical"].includes(priority)) {
+      return res.status(400).json({ error: "Priority must be low, medium, high, or critical" });
     }
 
     const incident = await prisma.incident.create({
       data: {
-        title,
-        description: description || "",
+        title: title.trim(),
+        description: typeof description === "string" ? description.trim() : "",
         priority,
         status: "open",
         reporterId: req.user.id,
@@ -189,30 +201,32 @@ app.post("/api/incidents", authenticateToken, async (req, res) => {
       include: { reporter: { select: { id: true, email: true } } },
     });
 
-    res.json(incident);
+    res.status(201).json(incident);
   } catch (error) {
-    console.error("Error creating incident:", error);
+    console.error("Create incident error:", error);
     res.status(500).json({ error: "Failed to create incident" });
   }
 });
 
-// UPDATE INCIDENT (RESOLVER only - WITH PRIORITY PROTECTION)
 app.patch("/api/incidents/:id", authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== "RESOLVER") {
       return res.status(403).json({ error: "Only resolvers can update incidents" });
     }
 
-    const { id } = req.params;
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid incident ID" });
+
     const { status, priority } = req.body;
 
-    const incident = await prisma.incident.findUnique({ where: { id: parseInt(id) } });
-
-    if (!incident) {
-      return res.status(404).json({ error: "Incident not found" });
+    const validStatuses = ["open", "in_progress", "resolved"];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({ error: "Invalid status value" });
     }
 
-    // CRITICAL RULE: PREVENT PRIORITY DOWNGRADE
+    const incident = await prisma.incident.findUnique({ where: { id } });
+    if (!incident) return res.status(404).json({ error: "Incident not found" });
+
     if (priority && PRIORITY_LEVELS[priority] < PRIORITY_LEVELS[incident.priority]) {
       return res.status(400).json({
         error: `Cannot downgrade priority from ${incident.priority} to ${priority}`,
@@ -220,26 +234,38 @@ app.patch("/api/incidents/:id", authenticateToken, async (req, res) => {
     }
 
     const updated = await prisma.incident.update({
-      where: { id: parseInt(id) },
+      where: { id },
       data: {
-        status: status || undefined,
-        priority: priority || undefined,
+        ...(status && { status }),
+        ...(priority && { priority }),
       },
       include: { reporter: { select: { id: true, email: true } } },
     });
 
     res.json(updated);
   } catch (error) {
-    console.error("Error updating incident:", error);
+    console.error("Update incident error:", error);
     res.status(500).json({ error: "Failed to update incident" });
   }
 });
 
-// ==================== SERVER START ====================
+// 404 for unknown API routes
+app.use("/api/{*splat}", (req, res) => {
+  res.status(404).json({ error: "API endpoint not found" });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json({ error: "Internal server error" });
+});
 
 app.listen(PORT, () => {
-  console.log(`? Server running on http://localhost:${PORT}`);
-  console.log(`?? Database: Prisma ORM connected`);
-  console.log(`?? JWT Authentication active`);
-  console.log(`??  Priority Downgrade Prevention: ENABLED`);
+  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+});
+
+process.on("SIGINT", async () => {
+  await prisma.$disconnect();
+  process.exit(0);
 });

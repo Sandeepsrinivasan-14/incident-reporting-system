@@ -104,7 +104,6 @@ export default function Login() {
       minWidth: "300px",
       color: "white",
       textAlign: "center",
-      display: "none",
     },
     brandTitle: {
       fontSize: "36px",
@@ -214,10 +213,19 @@ export default function Login() {
 
       <div style={styles.contentWrapper}>
         <div style={styles.leftPanel}>
+          <div style={{ fontSize: "48px", marginBottom: "16px" }}>🛡️</div>
           <h1 style={styles.brandTitle}>Incident Manager</h1>
           <p style={styles.brandSubtitle}>
             Efficient incident tracking and resolution system.
           </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "32px", textAlign: "left" }}>
+            {["Report incidents instantly", "Track status in real time", "Priority-protected escalation", "Role-based access control"].map((f) => (
+              <div key={f} style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "15px", color: "rgba(255,255,255,0.9)" }}>
+                <span style={{ width: "20px", height: "20px", borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", flexShrink: 0 }}>✓</span>
+                {f}
+              </div>
+            ))}
+          </div>
         </div>
 
         <div style={styles.rightPanel}>

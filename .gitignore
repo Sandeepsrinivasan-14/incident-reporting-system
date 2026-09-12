@@ -1,12 +1,12 @@
 node_modules/
 .env
 .env.local
+.env*.local
 dist/
 build/
 *.log
-dev.db
-dev.db-shm
-dev.db-wal
+*.db
+*.db-shm
+*.db-wal
 .DS_Store
 .vercel
-.env*.local
