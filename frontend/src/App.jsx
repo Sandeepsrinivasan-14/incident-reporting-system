@@ -4,10 +4,13 @@ import { ToastProvider } from "./components/Toast";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Dashboard from "./components/Dashboard";
+import Analytics from "./components/Analytics";
 
-function PrivateRoute({ children }) {
-  const { token } = useAuth();
-  return token ? children : <Navigate to="/login" replace />;
+function PrivateRoute({ children, resolverOnly = false }) {
+  const { token, role } = useAuth();
+  if (!token) return <Navigate to="/login" replace />;
+  if (resolverOnly && role !== "RESOLVER") return <Navigate to="/dashboard" replace />;
+  return children;
 }
 
 function AppRoutes() {
@@ -15,14 +18,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route
-        path="/dashboard"
-        element={
-          <PrivateRoute>
-            <Dashboard />
-          </PrivateRoute>
-        }
-      />
+      <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+      <Route path="/analytics" element={<PrivateRoute resolverOnly><Analytics /></PrivateRoute>} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
