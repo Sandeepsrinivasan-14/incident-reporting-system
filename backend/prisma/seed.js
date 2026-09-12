@@ -4,39 +4,22 @@ const bcrypt = require("bcryptjs");
 const prisma = new PrismaClient();
 
 async function main() {
-  const reporter = await prisma.user.upsert({
-    where: { email: "reporter@test.com" },
-    update: {},
-    create: {
-      email: "reporter@test.com",
-      password: await bcrypt.hash("password", 10),
-      role: "REPORTER",
-    },
-  });
+  const accounts = [
+    { email: "reporter@test.com", password: "password", role: "REPORTER" },
+    { email: "resolver@test.com", password: "password", role: "RESOLVER" },
+  ];
 
-  const resolver = await prisma.user.upsert({
-    where: { email: "resolver@test.com" },
-    update: {},
-    create: {
-      email: "resolver@test.com",
-      password: await bcrypt.hash("password", 10),
-      role: "RESOLVER",
-    },
-  });
-
-  await prisma.incident.create({
-    data: {
-      title: "Server Down",
-      description: "Database server is not responding",
-      priority: "CRITICAL",
-      status: "OPEN",
-      reporterId: reporter.id,
-    },
-  });
-
-  console.log("Seed data created");
+  for (const acc of accounts) {
+    const hash = await bcrypt.hash(acc.password, 12);
+    await prisma.user.upsert({
+      where: { email: acc.email },
+      update: {},
+      create: { email: acc.email, password: hash, role: acc.role },
+    });
+    console.log(`Seeded: ${acc.email} (${acc.role})`);
+  }
 }
 
-main().catch(console.error).finally(async () => {
-  await prisma.$disconnect();
-});
+main()
+  .catch((e) => { console.error(e); process.exit(1); })
+  .finally(() => prisma.$disconnect());
