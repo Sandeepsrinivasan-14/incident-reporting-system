@@ -4,19 +4,20 @@ import cors from "cors";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
 import multer from "multer";
 import nodemailer from "nodemailer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { resolveJwtSecret, createAuth } from "./lib/auth.js";
+import { slaDeadline } from "./lib/sla.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret";
+const JWT_SECRET = resolveJwtSecret();
 
 // ── Uploads directory ──────────────────────────────────────────────────────────
 const UPLOADS_DIR = path.join(__dirname, "uploads");
@@ -61,13 +62,6 @@ async function sendEmail({ to, subject, html }) {
   }
 }
 
-// ── SLA deadlines by priority ──────────────────────────────────────────────────
-const SLA_HOURS = { critical: 1, high: 4, medium: 24, low: 72 };
-function slaDeadline(priority) {
-  const h = SLA_HOURS[priority] || 24;
-  return new Date(Date.now() + h * 60 * 60 * 1000);
-}
-
 // ── Middleware ─────────────────────────────────────────────────────────────────
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 const allowedOrigins = ["http://localhost:5173", "http://localhost:5174", process.env.FRONTEND_URL].filter(Boolean);
@@ -81,20 +75,8 @@ app.use("/api/login", authLimiter);
 app.use("/api/register", authLimiter);
 app.use("/api/{*splat}", apiLimiter);
 
-// ── Auth helpers ───────────────────────────────────────────────────────────────
-function signToken(user) {
-  return jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: "7d" });
-}
-function authMiddleware(req, res, next) {
-  const h = req.headers.authorization;
-  if (!h?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
-  try { req.user = jwt.verify(h.slice(7), JWT_SECRET); next(); }
-  catch { res.status(401).json({ error: "Token invalid or expired" }); }
-}
-function requireResolver(req, res, next) {
-  if (req.user.role !== "RESOLVER") return res.status(403).json({ error: "Resolvers only" });
-  next();
-}
+// ── Auth helpers (see lib/auth.js) ─────────────────────────────────────────────
+const { signToken, authMiddleware, requireResolver } = createAuth(JWT_SECRET);
 
 // ── Audit helper ───────────────────────────────────────────────────────────────
 async function audit(incidentId, userId, action, field = null, oldValue = null, newValue = null) {
