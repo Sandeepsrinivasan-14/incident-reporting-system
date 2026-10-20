@@ -4,7 +4,6 @@ import cors from "cors";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import bcrypt from "bcryptjs";
-import { PrismaClient } from "@prisma/client";
 import multer from "multer";
 import nodemailer from "nodemailer";
 import path from "path";
@@ -12,9 +11,9 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { resolveJwtSecret, createAuth } from "./lib/auth.js";
 import { slaDeadline } from "./lib/sla.js";
+import { prisma } from "./lib/db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = resolveJwtSecret();
