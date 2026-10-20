@@ -265,6 +265,8 @@ NODE_ENV=production
 FRONTEND_URL=https://your-frontend.vercel.app
 ```
 
+> Prisma 7: the client is generated into `backend/generated/` (run `npx prisma generate` after install) and connects through the `better-sqlite3` driver adapter in `backend/lib/db.js`; connection settings live in `backend/prisma.config.js`. Requires Node >= 22.18. A relative `DATABASE_URL` like `file:./dev.db` now resolves from `backend/` (previously `backend/prisma/`), so move an existing `prisma/dev.db` if you want to keep its data.
+>
 > For production, switch Prisma datasource to PostgreSQL — update `DATABASE_URL` and `provider = "postgresql"` in `prisma/schema.prisma`.
 
 ---

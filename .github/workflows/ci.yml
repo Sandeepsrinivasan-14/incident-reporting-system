@@ -23,8 +23,17 @@ jobs:
       - run: npm test
       - name: Prisma generate and schema push
         run: npx prisma generate && npx prisma db push
-      - name: Server starts (import check)
-        run: node --check server.js
+      - name: Seed database (smoke-tests the Prisma 7 client and adapter)
+        run: node prisma/seed.js
+      - name: Server boots and answers requests
+        env:
+          JWT_SECRET: ci-secret-ci-secret-ci-secret-ci-secret
+          PORT: "3999"
+        run: |
+          node server.js & pid=$!
+          for i in $(seq 1 20); do curl -sf -o /dev/null -X POST localhost:3999/api/login -H 'content-type: application/json' -d '{"email":"reporter@test.com","password":"password"}' && break; sleep 1; done
+          curl -sf -X POST localhost:3999/api/login -H 'content-type: application/json' -d '{"email":"reporter@test.com","password":"password"}' | grep -q token
+          kill $pid
 
   frontend:
     runs-on: ubuntu-latest
